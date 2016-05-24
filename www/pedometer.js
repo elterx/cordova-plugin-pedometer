@@ -25,6 +25,14 @@ Pedometer.prototype.stopPedometerUpdates = function (onSuccess, onError) {
     exec(onSuccess, onError, "Pedometer", "stopPedometerUpdates", []);
 };
 
+Pedometer.prototype.startStepUpdates = function (onSuccess, onError) {
+    exec(onSuccess, onError, "Pedometer", "startStepUpdates", []);
+};
+
+Pedometer.prototype.stopStepUpdates = function (onSuccess, onError) {
+    exec(onSuccess, onError, "Pedometer", "stopStepUpdates", []);
+};
+
 Pedometer.prototype.queryData = function (onSuccess, onError, options) {
     exec(onSuccess, onError, "Pedometer", "queryData", [options]);
 };

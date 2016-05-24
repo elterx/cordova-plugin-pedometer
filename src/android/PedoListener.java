@@ -34,6 +34,7 @@ public class PedoListener extends CordovaPlugin implements SensorEventListener {
     public static int RUNNING = 2;
     public static int ERROR_FAILED_TO_START = 3;
     public static int ERROR_NO_SENSOR_FOUND = 4;
+    public static boolean STEP_DETECTOR = false;
 
     private int status;     // status of listener
     private float startsteps; //first value, to be substracted
@@ -89,6 +90,16 @@ public class PedoListener extends CordovaPlugin implements SensorEventListener {
                 this.win(false);
                 return true;
             }
+        } else if (action.equals("isStepDetectorAvailable")) {
+            List<Sensor> list = this.sensorManager.getSensorList(Sensor.TYPE_STEP_DETECTOR);
+            if ((list != null) && (list.size() > 0)) {
+                this.win(true);
+                return true;
+            } else {
+                this.setStatus(PedoListener.ERROR_NO_SENSOR_FOUND);
+                this.win(false);
+                return true;
+            }
         } else if (action.equals("isDistanceAvailable")) {
             //distance is never available in Android
             this.win(false);
@@ -103,6 +114,7 @@ public class PedoListener extends CordovaPlugin implements SensorEventListener {
                 // If not running, then this is an async call, so don't worry about waiting
                 // We drop the callback onto our stack, call start, and let start and the sensor callback fire off the callback down the road
                 this.start();
+                this.STEP_DETECTOR = false;
             }
             PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT, "");
             result.setKeepCallback(true);
@@ -110,6 +122,25 @@ public class PedoListener extends CordovaPlugin implements SensorEventListener {
             return true;
         }
         else if (action.equals("stopPedometerUpdates")) {
+            if (this.status == PedoListener.RUNNING) {
+                this.stop();
+            }
+            this.win(null);
+            return true;
+        }
+        else if (action.equals("startStepUpdates")) {
+            if (this.status != PedoListener.RUNNING) {
+                // If not running, then this is an async call, so don't worry about waiting
+                // We drop the callback onto our stack, call start, and let start and the sensor callback fire off the callback down the road
+                this.start();
+                this.STEP_DETECTOR = true;
+            }
+            PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT, "");
+            result.setKeepCallback(true);
+            callbackContext.sendPluginResult(result);
+            return true;
+        }
+        else if (action.equals("stopStepUpdates")) {
             if (this.status == PedoListener.RUNNING) {
                 this.stop();
             }
@@ -144,7 +175,10 @@ public class PedoListener extends CordovaPlugin implements SensorEventListener {
         this.setStatus(PedoListener.STARTING);
 
         // Get pedometer from sensor manager
-        List<Sensor> list = this.sensorManager.getSensorList(Sensor.TYPE_STEP_COUNTER);
+
+        List<Sensor> list;
+        if(!this.STEP_DETECTOR) list = this.sensorManager.getSensorList(Sensor.TYPE_STEP_COUNTER);
+        else list = this.sensorManager.getSensorList(Sensor.TYPE_STEP_DETECTOR);
 
         // If found, then register as listener
         if ((list != null) && (list.size() > 0)) {
@@ -158,7 +192,8 @@ public class PedoListener extends CordovaPlugin implements SensorEventListener {
             };
         } else {
             this.setStatus(PedoListener.ERROR_FAILED_TO_START);
-            this.fail(PedoListener.ERROR_FAILED_TO_START, "No sensors found to register step counter listening to.");
+            if(!this.STEP_DETECTOR) this.fail(PedoListener.ERROR_FAILED_TO_START, "No sensors found to register step counter listening to.");
+            else this.fail(PedoListener.ERROR_FAILED_TO_START, "No sensors found to register step detector listening to.");
             return;
         }
     }
@@ -189,7 +224,7 @@ public class PedoListener extends CordovaPlugin implements SensorEventListener {
     @Override
     public void onSensorChanged(SensorEvent event) {
         // Only look at step counter events
-        if (event.sensor.getType() != Sensor.TYPE_STEP_COUNTER) {
+        if (event.sensor.getType() != Sensor.TYPE_STEP_COUNTER && event.sensor.getType() != Sensor.TYPE_STEP_DETECTOR ) {
             return;
         }
 
@@ -198,6 +233,11 @@ public class PedoListener extends CordovaPlugin implements SensorEventListener {
             return;
         }
         this.setStatus(PedoListener.RUNNING);
+
+        if(this.STEP_DETECTOR){
+          this.win(true);
+          return;
+        }
 
         float steps = event.values[0];
 
